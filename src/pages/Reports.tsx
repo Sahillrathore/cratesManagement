@@ -1,22 +1,77 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { FileText, Download, BarChart4, PieChart } from 'lucide-react';
-import { mockVendors, mockSales, calculateTotalReceivables } from '@/lib/mockData';
+import { reportsApi } from '@/services/api';
+import { useQuery } from '@tanstack/react-query';
+import { 
+  ReportSummary, 
+  VendorSalesData, 
+  MonthlySalesData, 
+  ReceivablesAgingData 
+} from '@/lib/types';
+import { toast } from 'sonner';
+import { 
+  PieChart as RechartsPreChart, 
+  Pie, 
+  Cell, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
 
 const Reports = () => {
-  // Get statistics
-  const totalReceivables = calculateTotalReceivables();
-  const totalSales = mockSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-  const totalPaid = mockSales.reduce((sum, sale) => sum + sale.amountPaid, 0);
+  // Fetch report data
+  const { data: summaryData, isLoading: isSummaryLoading } = useQuery({
+    queryKey: ['reportSummary'],
+    queryFn: () => reportsApi.getSummary(),
+  });
 
-  const handleDownload = (reportType: string) => {
-    // In a real app, this would generate and download a report
-    console.log(`Downloading ${reportType} report`);
-    alert(`In a real app, this would download a ${reportType} report`);
+  const { data: vendorSalesData, isLoading: isVendorSalesLoading } = useQuery({
+    queryKey: ['salesByVendor'],
+    queryFn: () => reportsApi.getSalesByVendor(),
+  });
+
+  const { data: monthlySalesData, isLoading: isMonthlySalesLoading } = useQuery({
+    queryKey: ['monthlySales'],
+    queryFn: () => reportsApi.getMonthlySales(),
+  });
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+  const handleDownload = async (reportType: string) => {
+    try {
+      const blob = await reportsApi.generateReport(reportType);
+      
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${reportType.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      
+      toast.success(`${reportType} report downloaded`);
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      toast.error('Failed to download report');
+    }
   };
+
+  // Summary stats for cards
+  const totalSales = summaryData?.totalSales || 0;
+  const totalPaid = summaryData?.totalPaid || 0;
+  const totalReceivables = summaryData?.totalReceivables || 0;
 
   return (
     <MainLayout>
@@ -31,7 +86,7 @@ const Reports = () => {
             <CardTitle className="text-lg">Total Sales</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${totalSales.toFixed(2)}</p>
+            <p className="text-3xl font-bold">${isSummaryLoading ? '...' : totalSales.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -39,7 +94,7 @@ const Reports = () => {
             <CardTitle className="text-lg">Total Collected</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${totalPaid.toFixed(2)}</p>
+            <p className="text-3xl font-bold">${isSummaryLoading ? '...' : totalPaid.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -47,7 +102,7 @@ const Reports = () => {
             <CardTitle className="text-lg">Total Receivables</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${totalReceivables.toFixed(2)}</p>
+            <p className="text-3xl font-bold">${isSummaryLoading ? '...' : totalReceivables.toFixed(2)}</p>
           </CardContent>
         </Card>
       </div>
@@ -58,12 +113,40 @@ const Reports = () => {
             <CardTitle className="text-xl">Sales by Vendor</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="flex items-center justify-center h-64 bg-muted/20 rounded-md">
-              <div className="text-center">
-                <PieChart className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-muted-foreground">Pie chart will appear here</p>
+            {isVendorSalesLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <p>Loading vendor data...</p>
               </div>
-            </div>
+            ) : vendorSalesData && vendorSalesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={vendorSalesData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="totalSales"
+                    nameKey="vendorName"
+                    label={({ vendorName, percentageOfTotal }) => `${vendorName}: ${percentageOfTotal.toFixed(1)}%`}
+                  >
+                    {vendorSalesData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-64 bg-muted/20 rounded-md">
+                <div className="text-center">
+                  <PieChart className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-muted-foreground">No vendor sales data available</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -71,12 +154,32 @@ const Reports = () => {
             <CardTitle className="text-xl">Monthly Sales Trend</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="flex items-center justify-center h-64 bg-muted/20 rounded-md">
-              <div className="text-center">
-                <BarChart4 className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-muted-foreground">Bar chart will appear here</p>
+            {isMonthlySalesLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <p>Loading monthly data...</p>
               </div>
-            </div>
+            ) : monthlySalesData && monthlySalesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={monthlySalesData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => `$${value}`} />
+                  <Legend />
+                  <Bar dataKey="sales" name="Sales" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-64 bg-muted/20 rounded-md">
+                <div className="text-center">
+                  <BarChart4 className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-muted-foreground">No monthly sales data available</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

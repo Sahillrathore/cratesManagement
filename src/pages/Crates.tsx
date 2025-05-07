@@ -5,44 +5,80 @@ import CrateReturnsList from '@/components/crates/CrateReturnsList';
 import CrateReturnForm from '@/components/crates/CrateReturnForm';
 import { Button } from '@/components/ui/button';
 import { Plus, Package } from 'lucide-react';
-import { 
-  CrateReturn, 
-  mockCrateReturns, 
-  mockVendors,
-  calculateCrateStatistics 
-} from '@/lib/mockData';
+import { CrateReturn } from '@/lib/types';
 import { toast } from 'sonner';
 import StatsCard from '@/components/dashboard/StatsCard';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { crateReturnsApi, vendorsApi, reportsApi } from '@/services/api';
 
 const Crates = () => {
-  const [returns, setReturns] = useState<CrateReturn[]>(mockCrateReturns);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedVendorId, setSelectedVendorId] = useState<string | undefined>(undefined);
+  const queryClient = useQueryClient();
+  
+  // Get vendors for the form
+  const { data: vendors = [] } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: () => vendorsApi.getAll(),
+  });
+  
+  // Get crate returns
+  const { data: returns = [], isLoading: isReturnsLoading } = useQuery({
+    queryKey: ['crateReturns'],
+    queryFn: () => crateReturnsApi.getAll(),
+  });
   
   // Get crate statistics
-  const crateStats = calculateCrateStatistics();
+  const { data: summaryData, isLoading: isStatsLoading } = useQuery({
+    queryKey: ['reportSummary'],
+    queryFn: () => reportsApi.getSummary(),
+  });
+
+  // Create mutation for adding returns
+  const createReturnMutation = useMutation({
+    mutationFn: (newReturn: Omit<CrateReturn, 'id'>) => 
+      crateReturnsApi.create(newReturn),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crateReturns'] });
+      queryClient.invalidateQueries({ queryKey: ['reportSummary'] });
+      setIsFormOpen(false);
+      toast.success('Crate return recorded successfully');
+    },
+    onError: (error) => {
+      console.error('Error adding crate return:', error);
+      toast.error('Failed to record crate return');
+    },
+  });
+  
+  // Delete mutation for returns
+  const deleteReturnMutation = useMutation({
+    mutationFn: (id: string) => crateReturnsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crateReturns'] });
+      queryClient.invalidateQueries({ queryKey: ['reportSummary'] });
+      toast.success('Return record deleted');
+    },
+    onError: (error) => {
+      console.error('Error deleting crate return:', error);
+      toast.error('Failed to delete return record');
+    },
+  });
 
   const handleAddReturn = (vendorId: string, vendorName: string, cratesReturned: number, date: string) => {
-    // In a real app, this would be an API call
-    const newReturn: CrateReturn = {
-      id: `r${Date.now()}`,
+    createReturnMutation.mutate({
       vendorId,
       vendorName,
       cratesReturned,
       date
-    };
-
-    setReturns([...returns, newReturn]);
-    setIsFormOpen(false);
-    toast.success(`${cratesReturned} crates returned by ${vendorName}`);
+    });
   };
 
   const handleDeleteReturn = (returnId: string) => {
-    // In a real app, this would be an API call
-    const updatedReturns = returns.filter(ret => ret.id !== returnId);
-    setReturns(updatedReturns);
-    toast.success('Return record deleted');
+    deleteReturnMutation.mutate(returnId);
   };
+
+  // Get crate statistics from summary data
+  const crateStats = summaryData?.crateStats || { sent: 0, returned: 0, outstanding: 0 };
 
   return (
     <MainLayout>
@@ -60,26 +96,30 @@ const Crates = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <StatsCard
           title="Total Crates Sent"
-          value={crateStats.sent}
+          value={isStatsLoading ? '...' : crateStats.sent}
           icon={<Package size={20} />}
         />
         <StatsCard
           title="Total Crates Returned"
-          value={crateStats.returned}
+          value={isStatsLoading ? '...' : crateStats.returned}
           icon={<Package size={20} />}
         />
         <StatsCard
           title="Outstanding Crates"
-          value={crateStats.outstanding}
+          value={isStatsLoading ? '...' : crateStats.outstanding}
           icon={<Package size={20} />}
         />
       </div>
 
       <h2 className="text-xl font-semibold mb-4">Crate Return Records</h2>
-      <CrateReturnsList 
-        returns={returns}
-        onDelete={handleDeleteReturn}
-      />
+      {isReturnsLoading ? (
+        <p>Loading crate returns...</p>
+      ) : (
+        <CrateReturnsList 
+          returns={returns}
+          onDelete={handleDeleteReturn}
+        />
+      )}
 
       <CrateReturnForm
         isOpen={isFormOpen}
@@ -88,7 +128,7 @@ const Crates = () => {
           setSelectedVendorId(undefined);
         }}
         onSubmit={handleAddReturn}
-        vendors={mockVendors}
+        vendors={vendors}
         initialVendorId={selectedVendorId}
       />
     </MainLayout>
