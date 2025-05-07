@@ -4,7 +4,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import StatsCard from '@/components/dashboard/StatsCard';
 import RecentActivityList from '@/components/dashboard/RecentActivityList';
 import { 
-  Crate, 
+  Package, 
   DollarSign, 
   Users, 
   BarChart4 
@@ -47,13 +47,13 @@ const Dashboard = () => {
         <StatsCard
           title="Total Crates Sent"
           value={crateStats.sent}
-          icon={<Crate size={20} />}
+          icon={<Package size={20} />}
           description="All-time crates distributed"
         />
         <StatsCard
           title="Outstanding Crates"
           value={crateStats.outstanding}
-          icon={<Crate size={20} />}
+          icon={<Package size={20} />}
           description="Waiting to be returned"
           trend={{
             value: 12,
@@ -117,7 +117,7 @@ const Dashboard = () => {
                 href="/crates/returns/new" 
                 className="flex items-center p-3 hover:bg-muted rounded-md transition-colors"
               >
-                <Crate className="mr-3 h-5 w-5" />
+                <Package className="mr-3 h-5 w-5" />
                 <span>Record Crate Return</span>
               </a>
             </div>

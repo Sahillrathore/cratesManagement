@@ -62,7 +62,16 @@ const VendorForm: React.FC<VendorFormProps> = ({
   });
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    onSubmit(values);
+    // Make sure all required fields are present before submitting
+    const formData: Omit<Vendor, 'id' | 'cratesHeld' | 'cratesReturned' | 'createdAt'> = {
+      name: values.name,
+      contactName: values.contactName,
+      email: values.email,
+      phone: values.phone,
+      address: values.address,
+    };
+    
+    onSubmit(formData);
     form.reset();
   };
 

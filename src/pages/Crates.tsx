@@ -4,7 +4,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import CrateReturnsList from '@/components/crates/CrateReturnsList';
 import CrateReturnForm from '@/components/crates/CrateReturnForm';
 import { Button } from '@/components/ui/button';
-import { Plus, Crate } from 'lucide-react';
+import { Plus, Package } from 'lucide-react';
 import { 
   CrateReturn, 
   mockCrateReturns, 
@@ -61,17 +61,17 @@ const Crates = () => {
         <StatsCard
           title="Total Crates Sent"
           value={crateStats.sent}
-          icon={<Crate size={20} />}
+          icon={<Package size={20} />}
         />
         <StatsCard
           title="Total Crates Returned"
           value={crateStats.returned}
-          icon={<Crate size={20} />}
+          icon={<Package size={20} />}
         />
         <StatsCard
           title="Outstanding Crates"
           value={crateStats.outstanding}
-          icon={<Crate size={20} />}
+          icon={<Package size={20} />}
         />
       </div>
 

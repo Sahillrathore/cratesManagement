@@ -13,19 +13,19 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { 
-  Dashboard, 
+  LayoutDashboard, 
   Users, 
   DollarSign, 
-  Crate, 
+  Package, 
   FileText 
 } from "lucide-react";
 
 const Sidebar: React.FC = () => {
   const navItems = [
-    { icon: Dashboard, label: "Dashboard", path: "/" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
     { icon: Users, label: "Vendors", path: "/vendors" },
     { icon: DollarSign, label: "Sales", path: "/sales" },
-    { icon: Crate, label: "Crates", path: "/crates" },
+    { icon: Package, label: "Crates", path: "/crates" },
     { icon: FileText, label: "Reports", path: "/reports" },
   ];
 
@@ -33,7 +33,7 @@ const Sidebar: React.FC = () => {
     <SidebarComponent>
       <SidebarHeader className="flex items-center px-4 py-2">
         <div className="flex items-center space-x-2">
-          <Crate className="h-6 w-6 text-primary-foreground" />
+          <Package className="h-6 w-6 text-primary-foreground" />
           <span className="text-xl font-bold text-primary-foreground">CrateTracker</span>
         </div>
         <div className="ml-auto">
